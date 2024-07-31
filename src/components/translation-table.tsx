@@ -1,11 +1,14 @@
 import React from "react";
 import type { ItemType, TreeNode } from "~/__generated__/types";
+import { ParagraphCollection, RichText, SingleLine } from "./shape-components";
 
 type TranslationTableProps = {
   tree?: TreeNode | null;
+  selectedFields: { [key: string]: boolean };
+  toggleFieldSelection: (key: string) => void;
 };
 
-const renderTable = (items: TreeNode[], itemType: ItemType) => {
+const renderTable = (items: TreeNode[], itemType: ItemType, key: string) => {
   if (items.length === 0) return null;
 
   const columns = [
@@ -22,28 +25,33 @@ const renderTable = (items: TreeNode[], itemType: ItemType) => {
   ];
 
   return (
-    <div className="mb-8">
+    <div className="mb-8" key={key}>
       <h3 className="text-lg font-bold">{itemType} Items</h3>
       <table className="min-w-full bg-white">
         <thead>
           <tr>
-            {columns.map((column) => (
-              <th key={column} className="px-4 py-2 border">
+            {columns.map((column, index) => (
+              <th key={`header_${column}_${index}`} className="px-4 py-2 border">
                 {column}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
-            <tr key={item.itemId}>
+          {items.map((item, itemIndex) => (
+            <tr key={`row_${itemIndex}_${item?.item?.name}`}>
               <td className="px-4 py-2 border">{item?.item?.name}</td>
-              {columns.slice(1).map((column) => {
+              {columns.slice(1).map((column, cellIndex) => {
                 const component = item?.item?.components?.find((comp) => comp.name === column);
-                const content = component ? component.content : null;
+                // const content = component ? component.content : null;
+                // console.log({ content, component });
+
                 return (
-                  <td key={column} className="px-4 py-2 border">
-                    {typeof content === "object" && content !== null ? JSON.stringify(content) : content}
+                  <td key={`cell_${column}_${itemIndex}_${cellIndex}`} className="px-4 py-2 border">
+                    {/* {typeof content === "object" && content !== null ? JSON.stringify(content) : content} */}
+                    {component?.type === "singleLine" && <SingleLine data={component} />}
+                    {component?.type === "richText" && <RichText data={component} />}
+                    {component?.type === "paragraphCollection" && <ParagraphCollection data={component} />}
                   </td>
                 );
               })}
@@ -60,10 +68,8 @@ export const TranslationTable: React.FC<TranslationTableProps> = ({ tree }: Tran
     return <div>No data available.</div>;
   }
 
-  // Map to store items by their type
   const itemsMap: { [key in ItemType]?: TreeNode[] } = {};
 
-  // Populate the itemsMap with tree
   tree?.children?.forEach((child) => {
     const itemType = child?.item?.type;
     if (itemType && !itemsMap[itemType]) {
@@ -74,7 +80,9 @@ export const TranslationTable: React.FC<TranslationTableProps> = ({ tree }: Tran
 
   return (
     <div>
-      {Object.keys(itemsMap).map((itemType) => renderTable(itemsMap[itemType as ItemType]!, itemType as ItemType))}
+      {Object.keys(itemsMap).map((itemType, key) =>
+        renderTable(itemsMap[itemType as ItemType]!, itemType as ItemType, `table_${key}`),
+      )}
     </div>
   );
 };

@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import type { Component, ComponentChoiceContent, ContentChunkContent, ItemType } from "~/__generated__/types";
-import { ComponentType } from "~/__generated__/types";
-import type { ComponentWithTranslation, Preferences, PropertyWithTranslation } from "../use-cases/contracts/types";
-
 import { signal, type RefetchItem } from "@crystallize/app-signal";
 import type { SerializeFrom } from "@remix-run/node";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Component, ComponentChoiceContent, ContentChunkContent, ItemType } from "~/__generated__/types";
+import { ComponentType } from "~/__generated__/types";
 import { translateComponentType } from "~/use-cases/translations/translate-component-type";
 import { debounce } from "~/use-cases/utils/debounce";
 import { allowedTypes } from "../use-cases/contracts/allowed-components";
+import type { ComponentWithTranslation, Preferences, PropertyWithTranslation } from "../use-cases/contracts/types";
 import type { Translator, TranslatorArgs } from "./translator.server";
 
 type UpdateComponent = {
@@ -51,12 +49,10 @@ type HandlePropertyProps = {
 };
 
 const debounceRefetchItem = debounce<RefetchItem>((payload) => signal.send("refetchItem", payload), 600);
-
 const debounceRefetchItemComponents = debounce<RefetchItem>(
   (payload) => signal.send("refetchItemComponents", payload),
   600,
 );
-
 const debounceRefetchItemVariantComponents = debounce<RefetchItem>(
   (payload) => signal.send("refetchItemVariantComponents", payload),
   600,
@@ -83,20 +79,37 @@ export const useTranslations = ({
   properties,
 }: UseTranslationsProps) => {
   const [processingTranslations, setProcessingTranslations] = useState<Map<string, boolean>>(new Map());
-
   const [propertiesWithTranslation, setPropertiesWithTranslation] =
     useState<SerializeFrom<PropertyWithTranslation[] | null>>(properties);
-
   const [componentWithTranslation, setComponentWithTranslation] = useState<
     SerializeFrom<ComponentWithTranslation[] | null> | undefined
   >(components);
+  const [selectedFields, setSelectedFields] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     setComponentWithTranslation(components);
     setPropertiesWithTranslation(properties);
+
+    setSelectedFields((prev) => {
+      const newSelectedFields = { ...prev };
+      properties?.forEach((property, index) => {
+        if (!prev.hasOwnProperty(`property_${index}`)) {
+          newSelectedFields[`property_${index}`] = true;
+        }
+      });
+      components?.forEach((component, index) => {
+        if (!prev.hasOwnProperty(`component_${index}`)) {
+          newSelectedFields[`component_${index}`] = true;
+        }
+      });
+      return newSelectedFields;
+    });
   }, [components, properties]);
 
-  // use memo since we pass this as dept to useCallback
+  const toggleFieldSelection = (key: string) => {
+    setSelectedFields((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const translateLanguage = useMemo(
     () => ({
       from: fromLanguage,
@@ -284,6 +297,7 @@ export const useTranslations = ({
     },
     [translateLanguage, updateComponent, onUpdateComponent],
   );
+
   const handleBaseComponentTranslation = useCallback(
     async ({ component, componentIndex, preferences }: HandleTranslationProps) => {
       if (!component) {
@@ -322,7 +336,8 @@ export const useTranslations = ({
 
   const handleNameTranslation = useCallback(
     async ({ property, propertyIndex, preferences }: HandlePropertyProps) => {
-      setProcessingTranslations((prev) => new Map(prev.set(property.type, true)));
+      const id = `property_${propertyIndex}`;
+      setProcessingTranslations((prev) => new Map(prev.set(id, true)));
 
       try {
         updateProperty({
@@ -347,7 +362,7 @@ export const useTranslations = ({
         });
         // TODO: show error message
       } finally {
-        setProcessingTranslations((prev) => new Map(prev.set(property.type, false)));
+        setProcessingTranslations((prev) => new Map(prev.set(id, false)));
       }
     },
     [translateLanguage, updateProperty, onUpdateComponent],
@@ -358,7 +373,7 @@ export const useTranslations = ({
       setProcessingTranslations(new Map());
 
       properties?.forEach((property, propertyIndex) => {
-        if (property.type === "name") {
+        if (selectedFields[`property_${propertyIndex}`] && property.type === "name") {
           return handleNameTranslation({
             property,
             propertyIndex,
@@ -370,18 +385,20 @@ export const useTranslations = ({
       components?.forEach((component, componentIndex) => {
         const props = { component, componentIndex, preferences };
 
-        if (component.type === "contentChunk") {
-          return handleChunkTranslation(props);
-        }
+        if (selectedFields[`component_${componentIndex}`]) {
+          if (component.type === "contentChunk") {
+            return handleChunkTranslation(props);
+          }
 
-        if (component.type === "componentChoice") {
-          return handleChoiceTranslation({
-            ...props,
-            component: (component.content as ComponentChoiceContent)?.selectedComponent,
-          });
-        }
+          if (component.type === "componentChoice") {
+            return handleChoiceTranslation({
+              ...props,
+              component: (component.content as ComponentChoiceContent)?.selectedComponent,
+            });
+          }
 
-        allowedTypes.includes(component.type) && handleBaseComponentTranslation(props);
+          allowedTypes.includes(component.type) && handleBaseComponentTranslation(props);
+        }
       });
     },
     [
@@ -391,6 +408,7 @@ export const useTranslations = ({
       handleChunkTranslation,
       handleBaseComponentTranslation,
       handleNameTranslation,
+      selectedFields,
     ],
   );
 
@@ -400,5 +418,7 @@ export const useTranslations = ({
     onTranslate,
     currentProcessingTranslationsCount,
     totalProcessingTranslationsCount,
+    selectedFields,
+    toggleFieldSelection,
   };
 };

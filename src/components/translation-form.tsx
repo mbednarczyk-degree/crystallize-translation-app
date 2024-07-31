@@ -1,5 +1,6 @@
 import type { SerializeFrom } from "@remix-run/node";
 import type { ComponentChoiceContent, ContentChunkContent } from "~/__generated__/types";
+import { Toggle } from "~/components/toggle";
 import { allowedTypes } from "~/use-cases/contracts/allowed-components";
 import type { ComponentWithTranslation } from "../use-cases/contracts/types";
 import ComponentFactory from "./shape-components/componentFactory";
@@ -7,6 +8,8 @@ import { componentType } from "./shape-components/helpers";
 
 type TranslationFormProps = {
   components?: SerializeFrom<ComponentWithTranslation[]> | null;
+  selectedFields: { [key: string]: boolean };
+  toggleFieldSelection: (key: string) => void;
 };
 
 export const colorMap = [
@@ -19,20 +22,21 @@ export const colorMap = [
   { bg: "bg-cyan-100", text: "text-cyan-600" },
 ];
 
-export function TranslationForm({ components }: TranslationFormProps) {
+export function TranslationForm({ components, selectedFields, toggleFieldSelection }: TranslationFormProps) {
   return (
     <div className="my-6 border-0 border-b border-gray-200 border-solid">
       <div className="space-y-4">
-        {components?.map((component) => {
+        {components?.map((component, componentIndex) => {
+          const key = `component_${componentIndex}`;
           const { type } = component;
 
           if (type === "contentChunk") {
             return (
-              <div key={component.componentId} className="space-y-4">
+              <div key={key} className="space-y-4">
                 {(component.content as ContentChunkContent)?.chunks.map((chunk, index) => {
                   const color = colorMap[index % colorMap.length];
                   return (
-                    <div key={index} className={`${color.bg} pl-2 pt-4 rounded-md`}>
+                    <div key={`${key}_chunk_${index}`} className={`${color.bg} pl-2 pt-4 rounded-md`}>
                       <div className="flex items-center gap-2 pb-4 text-sm font-medium capitalize h-7">
                         <div className="-mr-1">{componentType["contentChunk"]}</div>
                         <span className={`font-medium text-xs ${color.text}`}>
@@ -41,7 +45,7 @@ export function TranslationForm({ components }: TranslationFormProps) {
                       </div>
 
                       <div className="overflow-hidden rounded-tl-md">
-                        {chunk.map((chunkComponent) => {
+                        {chunk.map((chunkComponent, chunkComponentIndex) => {
                           if (!allowedTypes.includes(chunkComponent.type)) {
                             return null;
                           }
@@ -50,7 +54,7 @@ export function TranslationForm({ components }: TranslationFormProps) {
                             <ComponentFactory
                               structuralColor={color}
                               isStructuralComponent
-                              key={chunkComponent.componentId}
+                              key={`${key}_chunk_${index}_component_${chunkComponentIndex}`}
                               component={chunkComponent}
                             />
                           );
@@ -68,7 +72,7 @@ export function TranslationForm({ components }: TranslationFormProps) {
             allowedTypes.includes((component?.content as ComponentChoiceContent)?.selectedComponent.type)
           ) {
             return (
-              <div className="pt-4 pl-2 bg-purple-100 rounded-md" key={component.componentId}>
+              <div className="pt-4 pl-2 bg-purple-100 rounded-md" key={key}>
                 <div className="flex items-center gap-2 pb-4 text-sm font-medium capitalize h-7">
                   <div className="-mr-1">{componentType[type]}</div>
                   <span className="text-xs font-medium text-purple-500">{component?.componentId}</span>
@@ -92,7 +96,14 @@ export function TranslationForm({ components }: TranslationFormProps) {
           }
 
           return (
-            <div key={component.componentId}>
+            <div key={key}>
+              {component.content && (
+                <Toggle
+                  state={selectedFields[key] ? "selected" : "unselected"}
+                  handleChange={() => toggleFieldSelection(key)}
+                />
+              )}
+
               <ComponentFactory component={component as ComponentWithTranslation} />
             </div>
           );

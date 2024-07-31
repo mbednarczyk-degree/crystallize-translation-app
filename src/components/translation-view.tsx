@@ -38,6 +38,8 @@ export function TranslationView({
     onTranslate,
     currentProcessingTranslationsCount,
     totalProcessingTranslationsCount,
+    selectedFields,
+    toggleFieldSelection,
   } = useTranslations({
     itemId,
     itemType,
@@ -55,14 +57,25 @@ export function TranslationView({
         toLanguage={toLanguage}
         fromLanguage={fromLanguage}
         onTranslate={onTranslate}
+        selectedFields={selectedFields}
       />
       <TranslationProgress
         currentProcessingTranslationsCount={currentProcessingTranslationsCount}
         totalProcessingTranslationsCount={totalProcessingTranslationsCount}
       />
-      <TranslationProperties properties={propertiesWithTranslation} />
-      <TranslationForm components={componentWithTranslation} />
-      {itemType === "folder" && <TranslationTable tree={tree} />}
+      <TranslationProperties
+        properties={propertiesWithTranslation}
+        selectedFields={selectedFields}
+        toggleFieldSelection={toggleFieldSelection}
+      />
+      <TranslationForm
+        components={componentWithTranslation}
+        selectedFields={selectedFields}
+        toggleFieldSelection={toggleFieldSelection}
+      />
+      {itemType === "folder" && (
+        <TranslationTable tree={tree} selectedFields={selectedFields} toggleFieldSelection={toggleFieldSelection} />
+      )}
     </div>
   );
 }
