@@ -1,19 +1,30 @@
 import { CopyButton } from "~/components/copy-button";
+import { Toggle } from "~/components/toggle";
 import type { PropertyWithTranslation } from "~/use-cases/contracts/types";
 
 type TranslationPropertiesProps = {
   properties: PropertyWithTranslation[] | null;
+  selectedFields: { [key: string]: boolean };
+  toggleFieldSelection: (key: string) => void;
 };
 
-export function TranslationProperties({ properties }: TranslationPropertiesProps) {
+export function TranslationProperties({
+  properties,
+  selectedFields,
+  toggleFieldSelection,
+}: TranslationPropertiesProps) {
   return (
     <div className="my-4">
-      {properties?.map((property) => {
+      {properties?.map((property, index) => {
+        const key = `property_${index}`;
         const hasTranslation = property.translationState === "translated";
         const isTranslating = property.translationState === "translating";
-
         return (
-          <div key={property.type} className="group">
+          <div key={key} className="group">
+            <Toggle
+              state={selectedFields[key] ? "selected" : "unselected"}
+              handleChange={() => toggleFieldSelection(key)}
+            />
             <div className="flex items-end justify-between gap-2 pt-2 pl-2">
               <div className="flex items-center gap-2 pb-2 text-sm font-medium capitalize h-7">
                 {hasTranslation && (
@@ -30,7 +41,7 @@ export function TranslationProperties({ properties }: TranslationPropertiesProps
 
             <div className="relative shadow bg-[#fff] overflow-hidden rounded-md ">
               <input
-                key={property.type}
+                key={key}
                 className={`${
                   !hasTranslation ? "text-base font-normal text-gray-400 italic" : "text-base font-normal"
                 } px-6 py-4 !bg-[#fff] w-full`}
